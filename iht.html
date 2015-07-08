@@ -1,0 +1,325 @@
+<html>
+<head>
+ <link rel="stylesheet" href="leaflet.css" />
+ <link rel="stylesheet" href="http://code.ionicframework.com/ionicons/1.5.2/css/ionicons.min.css">
+ <link rel="stylesheet" href="leaflet.awesome-markers.css">
+ <script src="leaflet.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <script src="jquery.js"></script>
+    <script src="http://maps.google.com/maps/api/js?v=3.2&sensor=false"></script>
+    <script src="google-leaf.js"></script>
+    <script src="leaflet.awesome-markers.js"></script>
+    
+
+<link rel="stylesheet" href="leaflet-routing-machine.css" />
+<script src="leaflet-routing-machine.js"></script>
+ <style>
+ body {
+    padding: 0;
+    margin: 0;
+}
+html, body, #map {
+    height: 100%;
+}
+ .leaflet-control-command-interior
+{
+    
+    width: 200px;
+    height: 200px;
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    display: block;
+    padding: 300px;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    box-shadow: 0 1px 7px rgba(0, 0, 0, 0.65);
+    cursor: auto;
+    text-align: center;
+    background-color: #FFFFFF;
+}
+
+    .leaflet-control-command-interior:hover
+{
+    background-color: #F4F4F4;
+}
+ </style>
+ 
+</head>
+<div id="map"></div>
+
+<script>
+
+
+var map = L.map('map', {
+    center: [-7.2087630, 110.8455990],
+    zoom: 10
+});
+ var google_roadmap = new L.Google('ROADMAP');
+  var google_hybrid = new L.Google('HYBRID');
+  var google_satelit = new L.Google('SATELLITE');
+
+var osm = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; Bhagas '
+});
+osm.addTo(map);	
+//ambil kabupaten list
+$.getJSON( "http://localhost/iht/index.php/kabupaten/get_kab", function( json ) {
+		  $.each(json, function( i, item ) {
+		  $('#kabupaten').append('<option value="'+item.id_kabupaten+'">'+item.kabupaten+'</option>')
+		})
+ });
+//ambil kabupaten geo
+			var style_kabupaten = {
+			"color": "blue",
+			"weight": 2,
+			"opacity": 0.5,
+			"fillOpacity": 0
+		};
+      var style_kecamatan = {
+      "color": "blue",
+      "weight": 2,
+      "opacity": 0.5,
+      "fillOpacity": 0
+    };
+			 var kabupaten_layer
+				$.ajax({
+					'type': "GET",
+					'async': false,
+					'global': false,
+					'url': "http://localhost/iht/index.php/kabupaten/geo",
+					'dataType': 'json',
+					'success': function (data) {
+						
+						    kabupaten_layer = L.geoJson(data, {
+						   style: style_kabupaten,
+							onEachFeature: function (feature, layer) {
+							layer.bindPopup(feature.properties.kabupaten);
+								 // Get bounds of polygon
+							var bounds = layer.getBounds();
+							// Get center of bounds
+							var center = bounds.getCenter();
+							// Use center to put marker on map
+							//var marker = L.marker(center).addTo(map);
+							  }
+						});
+						    kabupaten_layer.addTo(map);
+					}
+				});
+				
+	
+
+//ambil titik industri
+//ambil kabupaten geo
+		 var   iht_layer = null;
+           var source = null;
+                $.ajax({
+                    'type': "GET",
+                    'async': false,
+                    'global': false,
+                    'url': "http://localhost/iht/index.php/industri/geo/",
+                    'dataType': 'json',
+                    'success': function (data) {
+                      source = data;
+                           iht_layer = L.geoJson(data, {
+                                  onEachFeature: function (feature, layer) {
+                                    
+                                      
+                                   }
+                                  
+                               });
+                       iht_layer.addTo(map);
+                        
+                    }
+                });
+    
+
+
+//custom contro
+  L.Control.Kabupaten = L.Control.extend({
+    options: {
+        position: 'topleft',
+    },
+
+    onAdd: function (map) {
+        var controlDiv = L.DomUtil.create('div', 'leaflet-control-command');
+	
+        var controlUI = L.DomUtil.create('div', 'leaflet-control-command-interior', controlDiv);
+        controlUI.title = 'Perintah';
+        return controlDiv;
+    }
+});
+
+L.control.command = function (options) {
+    return new L.Control.Kabupaten(options);
+};
+
+L.control.command().addTo(map);
+L.control.scale().addTo(map);
+$('.leaflet-control-command').html('<select name="kecamatan" id="kabupaten"><option value="">Pilih Kabupaten</option></select>');
+
+//max zoom
+ map.on('zoomend ', function(e) {
+         //if ( map.getZoom() > 13 ){ kecamatan('add')}
+        // else if ( map.getZoom() <= 13 ){ kecamatan('remove')}
+    });
+
+                     //geo loction
+
+     map.locate({
+         watch: true,
+         setView: false, 
+         maxZoom: 16,
+         drawCircle: true,
+         follow: true
+     });
+     
+            var marker;   
+            var lingkaran;
+            var center = 0;
+           var icon_orang = L.AwesomeMarkers.icon({icon: 'spinner', markerColor: 'red', prefix: 'fa', spin:true});
+
+          
+     function onLocationFound(e) {
+                   var   radius = e.accuracy / 2;
+                    if(marker != undefined){
+                      map.removeLayer(marker);
+                      map.removeLayer(lingkaran);
+                    }
+                    if(center == 0 ){
+                      map.setView(e.latlng, 13);
+                      center++;
+                    }
+                     //L.marker(e.latlng).addTo(map)
+                     marker = new L.Marker(e.latlng,{icon: icon_orang});
+                             map.addLayer(marker);
+                     //L.circle(e.latlng, radius).addTo(map);
+                     lingkaran = new L.circle(e.latlng, radius);
+                             map.addLayer(lingkaran);
+                     //iki iso
+                     
+                     iht_layer.eachLayer(function (layer) {
+
+                                  layer_lat_long = layer.getLatLng();
+                                  layer_lat = layer.getLatLng().lat;
+                                  layer_lng = layer.getLatLng().lng;
+                                  //alert(layer_lat_long);
+                          // jarak To current point in meters
+                                  var posisi_kita_lat = e.latlng.lat;
+                                  var posisi_kita_lng = e.latlng.lng;
+                                  //console.log(posisi_kita_lat)
+                                     jarak = layer_lat_long.distanceTo(e.latlng);
+                           layer.bindPopup(layer.feature.properties.nama_industri+'<br><a href="#" onclick="ke_lokasi('+posisi_kita_lat+','+posisi_kita_lng+','+layer_lat+','+layer_lng+')">Ke Lokasi</a><br><a href="http://maps.apple.com/?q='+layer.feature.properties.ye+','+layer.feature.properties.xe+'">Ke Lokasi(googlemaps)</a></br>Jarak Udara : '+jarak/1000+' Kilometer');
+                         if(jarak > 30000){
+                        //  layer.setOpacity(0);
+                         }
+                        });
+                   }
+                   map.on('locationfound', onLocationFound);  
+
+                   var navigasi=null;
+              function ke_lokasi(x_awal, y_awal, x_akhir, y_akhir){
+                   //console.log(titik_awal)
+                   if(navigasi!=null){
+                        navigasi.spliceWaypoints(navigasi.getWaypoints().length - 1, 1, L.latLng(x_akhir, y_akhir));   
+                   }else{
+                 navigasi =  L.Routing.control({
+                     waypoints: [
+                       L.latLng(x_awal, y_awal),
+                       L.latLng(x_akhir, y_akhir)
+                     ]
+                   });
+                 navigasi.addTo(map);
+                 $('.leaflet-routing-container').append('<a href="#" id="tutup_navigasi" onclick="tutup_navigasi()">BATAL</a>');
+
+                 }
+             }
+             function tutup_navigasi() {
+                if(navigasi!=null){
+                        navigasi.spliceWaypoints(0, 2);
+                        $('.leaflet-routing-container').hide();
+                        navigasi = null;
+
+                }
+              };
+                   //layer control
+                   var baseLayers = {
+                  
+                       "OpenStreetMap": osm,
+                       "Google ROADMAP": google_roadmap,
+                      "Google HYBRID": google_hybrid,
+                     "Google SATELLITE": google_satelit
+                        
+                   };
+
+                   var overlays = {
+                       "Industri": iht_layer,
+                   		"Kabupaten": kabupaten_layer
+                   };
+
+                   L.control.layers(baseLayers, overlays).addTo(map); 
+
+                   //ganti kabupaten
+                   var kecamatan_layer
+                   $('#kabupaten').change(function(){
+                    if(kecamatan_layer != undefined){
+                      map.removeLayer(kecamatan_layer);
+                    }
+                   			//iht_layer.setOpacity(0);
+                   				var sembunyi = {
+                   				"color": "blue",
+                   				"weight": 2,
+                   				"opacity": 0,
+                   				"fillOpacity": 0
+                   			};
+                   			
+                   		kabupaten_layer.eachLayer(function (layer) {
+                               // Get bounds of polygon
+                            var bounds = layer.getBounds();
+                            // Get center of bounds
+                            var center = bounds.getCenter();
+                                if(layer.feature.properties.id_kabupaten == $('#kabupaten').val()){
+                                  iht_layer.eachLayer(function (layerc) {
+                                    if(layerc.feature.properties.id_kab!=$('#kabupaten').val()){
+                                      layerc.setOpacity(0);
+                                    }
+                                  })
+                                  map.panTo(center);
+                                  layer.setStyle(style_kabupaten);
+                                  
+                                    $.ajax({
+                                      'type': "GET",
+                                      'async': false,
+                                      'global': false,
+                                      'url': "http://localhost/iht/index.php/kecamatan/geo/"+ $('#kabupaten').val(),
+                                      'dataType': 'json',
+                                      'success': function (data) {
+                                        
+                                            kecamatan_layer = L.geoJson(data, {
+                                           style: style_kecamatan,
+                                          onEachFeature: function (feature, layerr) {
+                                          layer.bindPopup(feature.properties.kecamatan);
+                                        
+                                            }
+                                        });
+                                            kecamatan_layer.addTo(map);
+                                      }
+                                    });
+                                }else{
+                                layer.setStyle(sembunyi);                                 
+                                }
+
+                                if($('#kabupaten').val()==""){
+                                  layer.setStyle(style_kabupaten);
+                                 iht_layer.eachLayer(function (layerc) {
+                                            layerc.setOpacity(1);    
+                                     })
+                                }
+
+                         });
+                   
+                   })
+                  
+
+</script>
+</html>

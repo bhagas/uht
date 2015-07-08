@@ -1,0 +1,138 @@
+<html>
+<head>
+ <link rel="stylesheet" href="leaflet.css" />
+ <script src="leaflet.js"></script>
+   <script src="http://maps.google.com/maps/api/js?v=3.2&sensor=false"></script>
+    <script src="google-leaf.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+ <style>
+ #map { height: 500px; }
+ 
+ .leaflet-control-command-interior
+{
+    
+    width: 200px;
+    height: 200px;
+    background-position: 50% 50%;
+    background-repeat: no-repeat;
+    display: block;
+    padding: 300px;
+    border-radius: 4px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    box-shadow: 0 1px 7px rgba(0, 0, 0, 0.65);
+    cursor: auto;
+    text-align: center;
+    background-color: #FFFFFF;
+}
+
+    .leaflet-control-command-interior:hover
+{
+    background-color: #F4F4F4;
+}
+ </style>
+ 
+</head>
+<div id="map"></div>
+
+<script>
+ var googleLayer = new L.Google('ROADMAP');
+
+var map = L.map('map', {
+    center: [-6.2087630, 106.8455990],
+    zoom: 13
+});
+map.addLayer(googleLayer);
+
+	//ambil layer
+		$.ajax({
+			type: "GET",
+			url: "http://petajakarta.org/banjir/data/api/v1/aggregates/live",
+			dataType: 'json',
+			success: function (response) {
+				var style_kecamatan = {
+				"color": "blue",
+				"weight": 2,
+				"opacity": 0.5,
+				"fillOpacity": 0
+			};
+
+			   var geojson = L.geoJson(response, {
+			   style: style_kecamatan,
+				onEachFeature: function (feature, layer) {
+				layer.bindPopup(feature.properties.level_name);
+					 // Get bounds of polygon
+				var bounds = layer.getBounds();
+				// Get center of bounds
+				var center = bounds.getCenter();
+				// Use center to put marker on map
+				var marker = L.marker(center).addTo(map);
+				  }
+			});
+			geojson.addTo(map);
+			}
+		});
+		
+		//geo loction
+map.locate({
+    watch: true,
+	setView: true, 
+	maxZoom: 16,
+	drawCircle: true,
+	follow: true
+});
+function onLocationFound(e) {
+    var radius = e.accuracy / 2;
+
+    L.marker(e.latlng).addTo(map)
+        .bindPopup("Kowe sekitar " + radius + " meter dari meter ini").openPopup();
+
+    L.circle(e.latlng, radius).addTo(map);
+}
+map.on('locationfound', onLocationFound);
+//map.stopLocate();
+//map.panTo(L.latLng(50, 30));
+console.log(map.getCenter());
+L.control.layers().addTo(map);
+L.control.scale().addTo(map);
+//geo location
+
+
+//custom contro
+  L.Control.Kecamatan = L.Control.extend({
+    options: {
+        position: 'topleft',
+    },
+
+    onAdd: function (map) {
+        var controlDiv = L.DomUtil.create('div', 'leaflet-control-command');
+	
+        var controlUI = L.DomUtil.create('div', 'leaflet-control-command-interior', controlDiv);
+        controlUI.title = 'Perintah';
+        return controlDiv;
+    }
+});
+
+L.control.command = function (options) {
+    return new L.Control.Kecamatan(options);
+};
+
+L.control.command().addTo(map);
+
+$('.leaflet-control-command').html('<select name="kecamatan" id="kecamatan"><option>Pilih Kecamatan</option></select>');
+$('#kecamatan').append('<option>a</option>')
+//max zoom
+ map.on('zoomend ', function(e) {
+        // if ( map.getZoom() > 13 ){ map.removeLayer(googleLayer)}
+       //  else if ( map.getZoom() <= 13 ){ map.addLayer(googleLayer)}
+    });
+	//GANTI MAP  PER KLIK
+//	map.on('click', function(e) {
+		//alert(e.latlng); 
+	//	map.removeLayer(googleLayer)
+	//	 googleLayer = new L.Google('ROADMAP');
+    //  map.addLayer(googleLayer);
+	//});
+
+</script>
+</html>
